@@ -1,16 +1,18 @@
 <?php
-// Разрешить CORS и указать JSON-ответ
 header('Access-Control-Allow-Origin: *');
 header('Content-Type: application/json');
 
-// Проверка метода запроса
+require 'vendor/autoload.php'; // путь до автозагрузчика Composer
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['success' => false, 'message' => 'Метод не разрешен']);
     exit;
 }
 
-// Получение данных формы
 $name = isset($_POST['name']) ? trim($_POST['name']) : '';
 $phone = isset($_POST['phone']) ? trim($_POST['phone']) : '';
 $email = isset($_POST['email']) ? trim($_POST['email']) : '';
@@ -18,23 +20,40 @@ $service = isset($_POST['service']) ? trim($_POST['service']) : '';
 $message = isset($_POST['message']) ? trim($_POST['message']) : '';
 $consent = isset($_POST['consent']) ? 'Да' : 'Нет';
 
-// Проверка обязательных полей
 if ($name === '' || $phone === '') {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Заполните обязательные поля']);
     exit;
 }
 
-// Формирование письма
-$to = 'roma.aseo123@gmail.com';
-$subject = "Заявка на ремонт от $name";
-$body = "Имя: $name\nТелефон: $phone\nEmail: $email\nТип ремонта: $service\nСообщение: $message\nСогласие на обработку: $consent";
-$headers = "From: info@mirremonta.ru\r\nReply-To: $email\r\nContent-Type: text/plain; charset=UTF-8";
+$mail = new PHPMailer(true);
 
-// Отправка письма
-if (mail($to, $subject, $body, $headers)) {
+try {
+    // Настройки SMTP
+    $mail->isSMTP();
+    $mail->Host = 'smtp.gmail.com';
+    $mail->SMTPAuth = true;
+    $mail->Username = 'roma.aseo123@gmail.com'; // Ваш Gmail
+    $mail->Password = 'kloz sket qpmg hwie'; // Пароль приложения Gmail
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    $mail->Port = 587;
+
+    // От кого и кому
+    $mail->setFrom('roma.aseo123@gmail.com', 'Мир Ремонта');
+    $mail->addAddress('romaaseo@yandex.ru'); // Куда отправлять
+
+    // Ответить на email пользователя
+    if ($email) {
+        $mail->addReplyTo($email, $name);
+    }
+
+    // Контент письма
+    $mail->Subject = "Заявка на ремонт от $name";
+    $mail->Body = "Имя: $name\nТелефон: $phone\nEmail: $email\nТип ремонта: $service\nСообщение: $message\nСогласие на обработку: $consent";
+
+    $mail->send();
     echo json_encode(['success' => true]);
-} else {
+} catch (Exception $e) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Ошибка отправки письма']);
-}
+    echo json_encode(['success' => false, 'message' => 'Ошибка отправки: ' . $mail->ErrorInfo]);
+} // ← ДОБАВЬТЕ ЭТУ СКОБКУ
